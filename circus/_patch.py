@@ -26,6 +26,19 @@ def _bootstrap_inner(self):
             if _sys:
                 _sys.stderr.write("Exception in thread %s:\n%s\n" %
                                   (self.name, _format_exc()))
+
+                _sys.stderr.write("Greenlet dump\n")
+                from greenlet import greenlet
+                import gc
+                import traceback
+                for ob in gc.get_objects():
+                    if not isinstance(ob, greenlet):
+                        continue
+                    if not ob:
+                        continue   # not running anymore or not started
+                    _sys.stderr.write('Greenlet\n')
+                    _sys.stderr.write(''.join(traceback.format_stack(ob.gr_frame)))
+                    _sys.stderr.write('\n')
             else:
                 exc_type, exc_value, exc_tb = self._exc_info()
                 try:
