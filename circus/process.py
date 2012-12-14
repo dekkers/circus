@@ -111,6 +111,9 @@ class Process(object):
                 # TODO(petef): support hard/soft limits
                 resource.setrlimit(res, (value, value))
 
+            from cgroup import change_cgroup
+            change_cgroup("cpuacct", self.watcher.name)
+
             if self.gid:
                 try:
                     os.setgid(self.gid)
