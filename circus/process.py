@@ -101,6 +101,9 @@ class Process(object):
 
     def spawn(self):
         args = self.format_args()
+        # We pass this to Popen and modify it later in preexec_fn to add
+        # LISTEN_PID to the environment.
+        env = self.env.copy()
 
         def preexec_fn():
             os.setsid()
@@ -148,12 +151,12 @@ class Process(object):
                         # queue to be done later
                         todo.append((new_fd, fd))
 
-            os.environ['LISTEN_PID'] = str(os.getpid())
-            os.environ['LISTEN_FDS'] = str(len(self.use_fds))
+                env['LISTEN_PID'] = str(os.getpid())
+                env['LISTEN_FDS'] = str(len(self.use_fds))
 
         self._worker = Popen(args, cwd=self.working_dir,
                              shell=self.shell, preexec_fn=preexec_fn,
-                             env=self.env, close_fds=not self.use_fds,
+                             env=env, close_fds=not self.use_fds,
                              stdout=PIPE, stderr=PIPE,
                              executable=self.executable)
 
