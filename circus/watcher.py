@@ -161,7 +161,7 @@ class Watcher(object):
                  copy_path=False, max_age=0, max_age_variance=30,
                  hooks=None, respawn=True, **options):
         self.name = name
-        self.use_sockets = use_sockets
+        self.use_sockets = [name.strip() for name in use_sockets.split(",")]
         self.res_name = name.lower().replace(" ", "_")
         self.numprocesses = int(numprocesses)
         self.warmup_delay = warmup_delay
@@ -400,22 +400,27 @@ class Watcher(object):
             self.spawn_process()
             time.sleep(self.warmup_delay)
 
-    def _get_sockets_fds(self):
-        # XXX should be cached
-        if self.sockets is None:
-            return {}
-        fds = {}
-        for name, sock in self.sockets.items():
-            fds[name] = sock.fileno()
-        return fds
-
     def spawn_process(self):
         """Spawn process.
         """
         if self.stopped:
             return
 
-        cmd = util.replace_gnu_args(self.cmd, sockets=self._get_sockets_fds())
+        use_fds = []
+        for name in self.use_sockets:
+            try:
+                use_fds.append(self.sockets[name].fileno())
+            except KeyError:
+                # FIXME: We just log the error, but still start the process
+                # without the socket, because we don't have a good way to
+                # communicate the error. We need to think about a better
+                # strategy for handling errors like this.
+                logger.error('socket %s does not exist', name)
+
+        child_fds = range(3, len(self.use_sockets) + 3)
+        sockets = dict(zip(self.use_sockets, child_fds))
+
+        cmd = util.replace_gnu_args(self.cmd, sockets=sockets)
         self._process_counter += 1
         nb_tries = 0
         while nb_tries < self.max_retry:
@@ -426,7 +431,7 @@ class Watcher(object):
                                   shell=self.shell, uid=self.uid, gid=self.gid,
                                   env=self.env, rlimits=self.rlimits,
                                   executable=self.executable,
-                                  use_fds=self.use_sockets, watcher=self)
+                                  use_fds=use_fds, watcher=self)
 
                 # stream stderr/stdout if configured
                 if self.stdout_redirector is not None:

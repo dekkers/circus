@@ -27,7 +27,7 @@ def watcher_defaults():
         'stderr_stream': dict(),
         'stdout_stream': dict(),
         'priority': 0,
-        'use_sockets': False,
+        'use_sockets': '',
         'singleton': False,
         'copy_env': False,
         'copy_path': False,
@@ -216,8 +216,7 @@ def get_config(config_file):
                 elif opt == 'priority':
                     watcher['priority'] = dget(section, "priority", 0, int)
                 elif opt == 'use_sockets':
-                    watcher['use_sockets'] = dget(section, "use_sockets",
-                                                  False, bool)
+                    watcher['use_sockets'] = val
                 elif opt == 'singleton':
                     watcher['singleton'] = dget(section, "singleton", False,
                                                 bool)

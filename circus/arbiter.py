@@ -99,7 +99,7 @@ class Arbiter(object):
                 cmd += ' --ssh %s' % ssh_server
             if debug:
                 cmd += ' --log-level DEBUG'
-            stats_watcher = Watcher('circusd-stats', cmd, use_sockets=True,
+            stats_watcher = Watcher('circusd-stats', cmd, use_sockets="",
                                     singleton=True,
                                     stdout_stream=stdout_stream,
                                     stderr_stream=stderr_stream,
@@ -115,7 +115,7 @@ class Arbiter(object):
             cmd += ' --fd $(circus.sockets.circushttpd)'
             if ssh_server is not None:
                 cmd += ' --ssh %s' % ssh_server
-            httpd_watcher = Watcher('circushttpd', cmd, use_sockets=True,
+            httpd_watcher = Watcher('circushttpd', cmd, use_sockets="circushttpd",
                                     singleton=True,
                                     stdout_stream=stdout_stream,
                                     stderr_stream=stderr_stream,

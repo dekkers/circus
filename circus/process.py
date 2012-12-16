@@ -15,12 +15,13 @@ from subprocess import PIPE
 import time
 import shlex
 import warnings
+import fcntl
 
 from psutil import Popen, STATUS_ZOMBIE, STATUS_DEAD, NoSuchProcess
 
 from circus.py3compat import bytestring, string_types
 from circus.util import (get_info, to_uid, to_gid, debuglog, get_working_dir,
-                         ObjectDict, replace_gnu_args)
+                         ObjectDict, replace_gnu_args, close_all_other_fds)
 from circus import logger
 
 
@@ -80,7 +81,7 @@ class Process(object):
     """
     def __init__(self, wid, cmd, args=None, working_dir=None, shell=False,
                  uid=None, gid=None, env=None, rlimits=None, executable=None,
-                 use_fds=False, watcher=None, spawn=True):
+                 use_fds=[], watcher=None, spawn=True):
 
         self.wid = wid
         self.cmd = cmd
@@ -124,6 +125,32 @@ class Process(object):
             if self.uid:
                 os.setuid(self.uid)
 
+            # When use_fds is empty Popen already closed all the fds for us
+            if self.use_fds:
+                close_all_other_fds(self.use_fds)
+
+                # Inspired by the shift_fds function from systemd. We need to
+                # move the fds around so they are in the correct order specified
+                # by use_fds, but we can't assume anything about use_fds. It
+                # might be possible that fd 3 needs to be 4, 4 needs to be 5 and
+                # 5 needs to be 3 for example.
+                todo = list(enumerate(self.use_fds, 3))
+                while todo:
+                    new_fd, old_fd = todo.pop(0)
+                    if new_fd == old_fd:
+                        continue
+
+                    # Returns the first available fd that's new_fd or higher
+                    fd = fcntl.fcntl(old_fd, fcntl.F_DUPFD, new_fd)
+                    os.close(old_fd)
+                    if fd != new_fd:
+                        # The fd we want is still in use, add it back to the
+                        # queue to be done later
+                        todo.append((new_fd, fd))
+
+            os.environ['LISTEN_PID'] = str(os.getpid())
+            os.environ['LISTEN_FDS'] = str(len(self.use_fds))
+
         self._worker = Popen(args, cwd=self.working_dir,
                              shell=self.shell, preexec_fn=preexec_fn,
                              env=self.env, close_fds=not self.use_fds,
@@ -148,7 +175,10 @@ class Process(object):
             'executable': self.executable, 'use_fds': self.use_fds}
 
         if self.watcher is not None:
-            format_kwargs['sockets'] = self.watcher._get_sockets_fds()
+            child_fds = range(3, len(self.watcher.use_sockets) + 3)
+            format_kwargs['sockets'] = dict(zip(self.watcher.use_sockets,
+                                                child_fds))
+
             for option in self.watcher.optnames:
                 if option not in format_kwargs\
                         and hasattr(self.watcher, option):
