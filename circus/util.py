@@ -592,3 +592,31 @@ def get_connection(socket, endpoint, ssh_server=None, ssh_keyfile=None):
         except ImportError:
             raise ImportError("pexpect was not found, and failed to use "
                               "Paramiko.  You need to install Paramiko")
+
+
+def close_all_other_fds(fd_list):
+    """Close all fds >= 3 that are not in fd_list"""
+    try:
+        open_fds = os.listdir("/proc/self/fd")
+        for fd in open_fds:
+            try:
+                fd = int(fd)
+            except:
+                continue
+
+            if fd < 3 or fd in fd_list:
+                continue
+
+            try:
+                os.close(fd)
+            except:
+                pass
+    except:
+        # Fallback if /proc/self/fd is not available, simply close all possible
+        # file descriptors.
+        for fd in range(3, get_maxfd()):
+            if fd >= 3 and fd not in fd_list:
+                try:
+                    os.close(fd)
+                except:
+                    pass
