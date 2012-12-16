@@ -161,7 +161,10 @@ class Watcher(object):
                  copy_path=False, max_age=0, max_age_variance=30,
                  hooks=None, respawn=True, **options):
         self.name = name
-        self.use_sockets = [name.strip() for name in use_sockets.split(",")]
+        if use_sockets:
+            self.use_sockets = [name.strip() for name in use_sockets.split(",")]
+        else:
+            self.use_sockets = []
         self.res_name = name.lower().replace(" ", "_")
         self.numprocesses = int(numprocesses)
         self.warmup_delay = warmup_delay
