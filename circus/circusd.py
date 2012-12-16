@@ -1,20 +1,12 @@
 import sys
 import argparse
 import os
-import resource
 
 from circus import logger
 from circus.arbiter import Arbiter
 from circus.pidfile import Pidfile
 from circus import __version__
-from circus.util import MAXFD, REDIRECT_TO, configure_logger, LOG_LEVELS
-
-
-def get_maxfd():
-    maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-    if (maxfd == resource.RLIM_INFINITY):
-        maxfd = MAXFD
-    return maxfd
+from circus.util import get_maxfd, REDIRECT_TO, configure_logger, LOG_LEVELS
 
 
 try:

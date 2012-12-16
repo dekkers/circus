@@ -9,6 +9,7 @@ import re
 import sys
 import shlex
 import time
+import resource
 from zmq import ssh
 from ConfigParser import (ConfigParser, MissingSectionHeaderError,
                           ParsingError, DEFAULTSECT)
@@ -67,7 +68,15 @@ except ImportError:
         return
 
 
-MAXFD = 1024
+def get_maxfd():
+    maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+    if (maxfd == resource.RLIM_INFINITY):
+        try:
+            maxfd = os.sysconf("SC_OPEN_MAX")
+        except:
+            maxfd = 1024
+    return maxfd
+
 if hasattr(os, "devnull"):
     REDIRECT_TO = os.devnull
 else:
